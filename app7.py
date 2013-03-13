@@ -74,4 +74,53 @@ if __name__ == '__main__':
 # New outcome: Fred can delete all blog entries.  Additionally, any
 # authenticated user can delete blog entry named '1'.
 #
-# - FYI, circref formed but not cleaned up.
+# New features:
+#
+# [1] A Resource class.  It defines a __getitem__ that allows Pyramid to ask it
+#     for a child.  Instances of Resource also get a __parent__ attribute which
+#     point at the parent of a resource (another Resource).  Resource instances
+#     may also have an ``__acl__``.
+#
+# [2] We use a function named root_factory to return the root object, which is
+#     a Resource instance.  Before we return the root object, we give it a
+#     single child named '1'.
+#
+# [3] We've added a ``traverse`` argument to the ``add_route`` call for the
+#     ``blogentry_delete`` route.  This argument composes the security traversal
+#     path for this view.  It uses the same pattern language as the route
+#     pattern, so if the URL is ``/blog/1/delete``, the traversal path will
+#     be ``/1``.
+#
+# Noteworthy:
+#
+# - We did not change our view code at all.  The changes we made were made to
+#   the root factory and to the route associated ``blogentry_delete``.
+#
+# - Since we now have formed a security tree by returning an object that has
+#   children from the root factory, and since the ``blogentry_delete`` route
+#   now traverses the tree when it is matched, we can now protect individual
+#   URLs differently from each other.
+#
+# - In the above application, ``/blog/1/delete`` can be executed by an
+#   authenticated user, but ``/blog/2/delete`` cannot.  This is because the
+#   effective ACL will allow the Authenticated user to delete as the result of
+#   traversing to ``/1`` because there is such a node in the tree, but there
+#   isn't any node in the security tree for ``/2`` so the root ACL is the only
+#   ACL consulted.  This is often referred to as "object level security", and
+#   is often a requirement for CMS-like systems.
+#
+# - The ACLAuthorizationPolicy *inherits* ACLs from further down the tree
+#   unless an explicit Deny is encountered.  This means that, since the root
+#   resource has an __acl__ that says "Allow fred to delete", fred will have
+#   the delete permission "everywhere" in the tree.  Unless fred (or another
+#   principal possesed by the requesting user) is explicitly denied in an ACL
+#   somewhere.
+#
+# - FYI, circref formed but not cleaned up when Resource instances are created
+#   (a resource points to its parent using ``__parent__`` and the parent points
+#   at its children via the ``children`` dictionary).
+#
+# - Note that in a real application, the resource tree would typically be
+#   persisted somewhere (maybe in a database, or in a pickle), and not
+#   recomposed on every request.
+

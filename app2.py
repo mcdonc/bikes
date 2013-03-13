@@ -60,7 +60,7 @@ if __name__ == '__main__':
 #
 # Noteworthy:
 #
-# - No frameworky bits, it's all your code.  Party like it's 1999.
+# - No frameworky bits, it's all your code.
 #
 # - Imperative code to check whether a logged in user can delete must
 #   be repeated everywhere to be useful.
@@ -71,8 +71,14 @@ if __name__ == '__main__':
 #
 # - Authentication is "who you are".  Authorization is "what you can do".  In
 #   this application, authentication and authorization are intertwined.
-#   However, logically, while authorization typically depends on
-#   authentication, authentication is independent of authorization.  Our
-#   application does not take this into consideration, however; it has no
-#   abstractions that would allow it to.
+#
+# - While authorization typically depends on authentication, authentication is
+#   almost always logically independent of authorization.  Our application does
+#   not take this into consideration, however.  It has no abstractions that
+#   would allow them to be changed independently.
+#
+# - Curiosity: httpexceptions can either be raised or returned.  Typically you
+#   raise if you want the work done in the current transaction to be rolled
+#   back.  We raise HTTPForbidden above, but return HTTPFound, for this
+#   notional reason.
 

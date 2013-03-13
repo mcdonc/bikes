@@ -85,9 +85,9 @@ if __name__ == '__main__':
 # New features: 
 #
 # [1] A user-defined Pyramid authentication policy.  It implements the notional
-#     Pyramid authentication policy API.
+#     Pyramid authentication policy API (IAuthenticationPolicy).
 # [2] A user-defined Pyramid authorization policy.  It implements the notional
-#     Pyramid authorization policy API.
+#     Pyramid authorization policy API (IAuthorizationPolicy).
 # [3] We wire the authentication and authorization policies into config via
 #     the Configurator.
 # [4] A "permission" argument to the ``view_config`` of blogentry_delete
