@@ -108,15 +108,15 @@ if __name__ == '__main__':
 #
 # - The ``permission`` attached to our ``delete`` method [4] will be the 
 #   ``permission`` value passed to  the ``permits`` method of our authorization
-#   policy [2] before Pyramid attempts to execute the ``blogentry_delete`` view. 
-#   ``permission='delete'`` means "allow execution of this view if the user 
-#   who causes its invocation is permitted to delete"; it's the authorization 
-#   policy's job to answer this question.
+#   policy [2] before Pyramid attempts to execute the ``blogentry_delete``
+#   view. .  ``permission='delete'`` means "allow execution of this view if
+#   the user who causes its invocation is permitted to delete"; it's the
+#   authorization policy's job to answer this question.
 #
-# - Our new authorization policy [2] performs very basic security checking using 
-#   the principals output by our authentication policy [1].  The return value of
-#   ``effective_principals`` of our authentication policy [1] is the 
-#   ``principals`` value passed to the ``permits`` method of our authorization 
+# - Our new authorization policy [2] performs very basic security checking
+#   using the principals output by our authentication policy [1].  The return
+#   value of ``effective_principals`` of our authentication policy [1] is the
+#   ``principals`` value passed to the ``permits`` method of our authorization
 #   policy [2].
 #
 # - Our new authorization policy [2] ``permits`` method checks if the principal 
@@ -141,6 +141,9 @@ if __name__ == '__main__':
 #   are rampant when you outsource behavior to framework code.
 #
 # Extra:
+#
+# - ``permission`` is not a "view predicate".  Two view configurations with
+#   different permission arguments but otherwise the same will conflict.
 #
 # - Show PYRAMID_DEBUG_AUTHORIZATION
 
