@@ -21,7 +21,8 @@ class BlogentryViews(object):
 
     @view_config(route_name='login')
     def login(self):
-        headers = remember(self.request, 'fred')
+        userid = self.request.matchdict['userid']
+        headers = remember(self.request, userid)
         return HTTPFound('/blog/1', headers=headers)
 
     @view_config(route_name='logout')
@@ -45,7 +46,7 @@ if __name__ == '__main__':
         )
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login')
+    config.add_route('login', 'login/{userid}')
     config.add_route('logout', 'logout')
     config.scan()
     app = config.make_wsgi_app()
@@ -68,11 +69,36 @@ if __name__ == '__main__':
 #
 # Noteworthy:
 #
-# - This is typically where people go off the rails.  We've added yet another
-#   layer of abstraction by using the ACLAuthorizationPolicy.  This abstraction
-#   requires us to understand this "root factory" thing.
+# - This step is typically where people's brains start to steam.  It's
+#   because we've added yet another layer of abstraction by using the
+#   ACLAuthorizationPolicy.  This abstraction requires us to understand this
+#   "root factory" thing and what the policy does with the "root" it produces.
 #
-# - The benefit: we no longer own any imperative code which does 
-#   authorization or authentication.  It's all declarative.
-
-
+# - The root object produced by the root factory is a "resource".  You can
+#   think of a resource as a security context.  It's called "root" because it's
+#   presumed that there will be some number of resources arranged in a tree
+#   with the object produced by the root factory at the root of the resource
+#   tree.  In the above application the root object has no children, so it's
+#   the *only* resource that the system ever sees when the application is run.
+#   More complex authorization requirements can make use of children.
+#
+# - Every authorization policy is passed a *context* argument to its
+#   ``permits`` method.  This argument will be a resource.  Our
+#   DumbAuthorizationPolicy ignored this argument.  The ACLAuthorizationPolicy
+#   does not; it uses the values in the ``__acl__`` attribute of the resource
+#   its passed to determine whether the user possesses the permission relative
+#   to this view execution.
+#
+# - An ACL is an access control list.  It is a sequence of ACEs (access control
+#   entries).  ``(Allow, Authenticated, 'edit')`` means Allow people who
+#   possess the Authenticated principal (you can think of it as a group) to
+#   edit.  Only users who are explicitly allowed a permission in an ACL (by
+#   mention of their userid or any group they're in such as "Authenticated")
+#   will be permitted to execute a view protected by that permission.
+#
+# - The benefit of all this indirection: we no longer own any imperative code
+#   which does authorization or authentication.  Our application uses entirely
+#   declarative stuff to protect view execution.  We only add ACLs and
+#   permissions, and we have no conditions in our code.  Declarative code
+#   requires less testing, and you can typically be surer of the result as long
+#   as you understand the abstraction.

@@ -20,7 +20,8 @@ class BlogentryViews(object):
 
     @view_config(route_name='login')
     def login(self):
-        headers = remember(self.request, 'fred')
+        userid = self.request.matchdict['userid']
+        headers = remember(self.request, userid)
         return HTTPFound('/blog/1', headers=headers)
 
     @view_config(route_name='logout')
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         )
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login')
+    config.add_route('login', 'login/{userid}')
     config.add_route('logout', 'logout')
     config.scan()
     app = config.make_wsgi_app()

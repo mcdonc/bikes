@@ -23,7 +23,8 @@ class BlogentryViews(object):
     # [2]
     @view_config(route_name='login')
     def login(self):
-        headers = [('Set-Cookie', 'userid=fred')]
+        userid = self.request.matchdict['userid']
+        headers = [('Set-Cookie', 'userid=%s' % userid)]
         return HTTPFound('/blog/1', headers=headers)
 
     # [3]
@@ -68,10 +69,10 @@ if __name__ == '__main__':
 #   [1], [2], and [3]).  A change to the authentication mechanism implies
 #   visiting each place the imperative security checking is done.
 #
-# - Authentication is "who you are".  Authorization is "what you can do".
-#   In this application, authentication and authorization are intertwined.
-#   However, logically, while authorization typically depends on authentication, 
-#   authentication is independent of authorization.  Our application does not
-#   take this into consideration, however; it has no abstractions that would
-#   allow it to.
+# - Authentication is "who you are".  Authorization is "what you can do".  In
+#   this application, authentication and authorization are intertwined.
+#   However, logically, while authorization typically depends on
+#   authentication, authentication is independent of authorization.  Our
+#   application does not take this into consideration, however; it has no
+#   abstractions that would allow it to.
 
