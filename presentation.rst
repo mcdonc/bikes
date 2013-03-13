@@ -50,3 +50,9 @@ On To the Code
 --------------
 
 - We're going to just read code from here on in.
+
+More Resources
+--------------
+
+- Michael Merickel's Pyramid Auth Demo:
+  http://michael.merickel.org/projects/pyramid_auth_demo/
