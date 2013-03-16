@@ -1,10 +1,10 @@
+#!/usr/bin/env python
 from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.config import Configurator
 from pyramid.security import Allow, Authenticated, remember, forget
 from pyramid.authentication import AuthTktAuthenticationPolicy
 from pyramid.authorization import ACLAuthorizationPolicy
-from pyramid.httpexceptions import HTTPFound
 from waitress import serve
 
 class BlogentryViews(object):
@@ -15,20 +15,27 @@ class BlogentryViews(object):
     def show(self):
         return Response('Shown')
 
-    @view_config(route_name='blogentry_delete', permission='delete')
+    @view_config(route_name='blogentry_delete',
+                 permission='delete')
     def delete(self):
         return Response('Deleted')
 
     @view_config(route_name='login')
     def login(self):
-        userid = self.request.matchdict['userid']
+        userid = self.request.params.get('userid')
         headers = remember(self.request, userid)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged in as %s' % userid,
+            headers=headers
+            )
 
     @view_config(route_name='logout')
     def logout(self):
         headers = forget(self.request)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged out',
+            headers=headers
+            )
 
 # [2]
 class RootFactory(object):
@@ -46,8 +53,8 @@ if __name__ == '__main__':
         )
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login/{userid}')
-    config.add_route('logout', 'logout')
+    config.add_route('login', '/login')
+    config.add_route('logout', '/logout')
     config.scan()
     app = config.make_wsgi_app()
     serve(app)
@@ -63,7 +70,6 @@ if __name__ == '__main__':
 #     configurator. Our ACLAuthorizationPolicy will use instances
 #     of objects produced by this root factory to determine whether or
 #     not someone is permitted to execute a view.
-#
 # [2] We supply a "RootFactory" class.  Instances of this class possess an
 #     ACL (as ``__acl__``).  ACL stands for "Access Control List".
 #

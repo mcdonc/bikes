@@ -1,9 +1,9 @@
+#!/usr/bin/env python
 from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.config import Configurator
 from pyramid.security import Authenticated, remember, forget
 from pyramid.authentication import AuthTktAuthenticationPolicy
-from pyramid.httpexceptions import HTTPFound
 from waitress import serve
 
 class BlogentryViews(object):
@@ -14,28 +14,38 @@ class BlogentryViews(object):
     def show(self):
         return Response('Shown')
 
-    @view_config(route_name='blogentry_delete', permission='delete')
+    @view_config(route_name='blogentry_delete',
+                 permission='delete')
     def delete(self):
         return Response('Deleted')
 
+    # [5]
     @view_config(route_name='login')
     def login(self):
-        userid = self.request.matchdict['userid']
+        userid = self.request.params.get('userid')
         headers = remember(self.request, userid)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged in as %s' % userid,
+            headers=headers
+            )
 
     @view_config(route_name='logout')
     def logout(self):
         headers = forget(self.request)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged out',
+            headers=headers
+            )
 
 class DumbAuthorizationPolicy(object):
-    def permits(self, context, principals, permission):
+    def permits(self, context, principals,
+                permission):
         return Authenticated in principals
 
 # [1]
 if __name__ == '__main__':
-    authn_policy = AuthTktAuthenticationPolicy('soseekrit')
+    authn_policy = AuthTktAuthenticationPolicy(
+        'soseekrit')
     authz_policy = DumbAuthorizationPolicy()
     config = Configurator(
         authentication_policy=authn_policy,
@@ -43,8 +53,8 @@ if __name__ == '__main__':
         )
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login/{userid}')
-    config.add_route('logout', 'logout')
+    config.add_route('login', '/login')
+    config.add_route('logout', '/logout')
     config.scan()
     app = config.make_wsgi_app()
     serve(app)

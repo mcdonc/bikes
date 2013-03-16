@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.config import Configurator

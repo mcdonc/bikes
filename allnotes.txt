@@ -1,0 +1,287 @@
+app1
+====
+
+No security; users can both show and delete any blog entry.
+
+Features:
+
+[1] Show and delete views stubbed out for purposes of brevity.
+
+Noteworthy:
+
+- When you visit /blog/id it will invoke the "show" view.
+
+- When you visit /blog/id/delete it will invoke the "delete" view.
+
+app2
+====
+
+Basic security; only authenticated users can delete blog entries.  all others
+can view blog entries.
+
+New features:
+
+[4] Wiring up login and logout views into config.
+[2] Login view to service authorization checks.  Just a stub, a real app 
+    would require password checking.
+[3] Logout view to forget login credentials.
+[1] Imperative authorization code to check whether a logged in user can delete
+
+Noteworthy:
+
+- No frameworky bits, it's all your code.
+
+- Imperative code to check whether a logged in user can delete must
+  be repeated everywhere to be useful.
+
+- Married to cookie-based authentication throughout codebase (everywhere:
+  [1], [2], and [3]).  A change to the authentication mechanism implies
+  visiting each place the imperative security checking is done.
+
+- Authentication is "who you are".  Authorization is "what you can do".  In
+  this application, authentication and authorization are intertwined.
+
+- While authorization typically depends on authentication, authentication is
+  almost always logically independent of authorization.  Our application does
+  not take this into consideration, however.  It has no abstractions that
+  would allow them to be changed independently.
+
+- Curiosity: httpexceptions can either be raised or returned.  Typically you
+  raise if you want the work done in the current transaction to be rolled
+  back.  We raise HTTPForbidden above, but return HTTPFound, for this
+  notional reason.
+
+app3
+====
+
+Same thing as app1.py.  Basic security; only authenticated users can delete 
+blog entries and all others can view blog entries.
+
+New features: 
+
+[3] We wire the authentication and authorization policies into config via
+    the Configurator.
+[1] A user-defined Pyramid authentication policy.  It implements the notional
+    Pyramid authentication policy API (IAuthenticationPolicy).
+[2] A user-defined Pyramid authorization policy.  It implements the notional
+    Pyramid authorization policy API (IAuthorizationPolicy).
+[4] A "permission" argument to the ``view_config`` of blogentry_delete
+    replaces imperative authorization code that used to live in method body.
+[5] We use ``pyramid.security.remember`` instead of setting a cookie by
+    hand in the login view.
+[6] We use ``pyramid.security.forget`` instead of removing a cookie by hand
+    in the logout view.
+
+Noteworthy:
+
+- The new authentication policy [1] uses the same cookie-based authentication 
+  scheme that we used in app2.py.  We've just moved the code.  In the login 
+  view [5], we set the cookie via ``remember``, which calls our 
+  authentication policy's ``remember`` method.  Our ``logout`` method in
+  [6] causes our authentication policy's ``forget`` method to be called, which
+  expires the cookie.
+
+- The ``permission`` attached to our ``delete`` method [4] will be the 
+  ``permission`` value passed to  the ``permits`` method of our authorization
+  policy [2] before Pyramid attempts to execute the ``blogentry_delete``
+  view. .  ``permission='delete'`` means "allow execution of this view if
+  the user who causes its invocation is permitted to delete"; it's the
+  authorization policy's job to answer this question.
+
+- Our new authorization policy [2] performs very basic security checking
+  using the principals output by our authentication policy [1].  The return
+  value of ``effective_principals`` of our authentication policy [1] is the
+  ``principals`` value passed to the ``permits`` method of our authorization
+  policy [2].
+
+- Our new authorization policy [2] ``permits`` method checks if the principal 
+  named ``Authenticated`` is in the ``principals`` passed and allows
+  the action if the permission under consideration is ``delete``.
+
+- Authentication policy completely divorced from application code.  Changing
+  to, e.g. session-based authentication or Basic HTTP Authentication would
+  require changing the authentication_policy argument in [3] to use a
+  different implementation, but app code would be otherwise unchanged.
+
+- Pyramid is now made responsible for allowing or permitting the execution
+  of the ``delete`` view [4] instead of us.  Authorization is normalized via
+  the ``permission`` attached to the view via the ``view_config`` decorator.
+
+- If our authorization policy's ``permits`` method returns False, Pyramid 
+  returns a 403 Forbidden error by default (configurable via a "forbidden 
+  view").
+
+- Definitely more frameworky.  You couldn't successfully hand this code off 
+  to someone who was unwilling to learn about Pyramid security.  Trade-offs
+  are rampant when you outsource behavior to framework code.
+
+Extra:
+
+- ``permission`` is not a "view predicate".  Two view configurations with
+  different permission arguments but otherwise the same will conflict.
+
+- Show PYRAMID_DEBUG_AUTHORIZATION
+
+app4
+====
+
+Exactly the same as app3.py except we ditch our authorization policy for
+one provided by Pyramid.
+
+New features:
+
+[1] We use AuthTktAuthenticationPolicy instead of our homebrewed
+    DumbAuthenticationPolicy.
+
+Noteworthy:
+
+- AuthTktAuthenticationPolicy used in [1] is offered by Pyramid.  It
+  implements the authentication policy API just like our homebrewed one
+  did, except it uses an Apache ``mod_auth_tkt`` "authentication ticket"
+  stored in a cookie.  Nominally it's more secure as a result, but the real
+  win lies more in needing to maintain less security code.  It's typically a 
+  good idea to use a built-in authentication policy unless you need the
+  control.
+
+- Pyramid has several built in authentication policies:  
+  AuthTktAuthenticationPolicy, SessionAuthenticationPolicy, 
+  BasicAuthenticationPolicy, RemoteUserAuthenticationPolicy.
+
+- If your clients don't authenticate in a single way, you can combine
+  existing authentication policies using the ``pyramid_multiauth`` package.
+  For example, web service clients need basic authentication but
+  other clients need cookie-based auth.
+
+- We continue to use our DumbAuthorizationPolicy unchanged.
+  Authentication and authorization policies are independent.  If written
+  correctly, an authentication policy can be swapped for another 
+  implementation as necessary without needing to change the application's
+  authorization policy.  Likewise, an authorization policy can be
+  swapped for another without needing to change the authentication policy.
+
+app5
+====
+
+Exactly the same as app2.py, app3.py, and app4.py. Basic security; only
+authenticated users can delete blog entries.  all others can view blog 
+entries.
+
+New features:
+
+[1] We use Pyramid's ACLAuthorizationPolicy instead of our homebrewed
+    DumbAuthorizationPolicy.  We now pass a "root factory" into our 
+    configurator. Our ACLAuthorizationPolicy will use instances
+    of objects produced by this root factory to determine whether or
+    not someone is permitted to execute a view.
+
+[2] We supply a "RootFactory" class.  Instances of this class possess an
+    ACL (as ``__acl__``).  ACL stands for "Access Control List".
+
+Noteworthy:
+
+- This step is typically where people's brains start to steam.  It's
+  because we've added yet another layer of abstraction by using the
+  ACLAuthorizationPolicy.  This abstraction requires us to understand this
+  "root factory" thing and what the policy does with the "root" it produces.
+
+- The root object produced by the root factory is a "resource".  You can
+  think of a resource as a security context.  It's called "root" because it's
+  presumed that there will be some number of resources arranged in a tree
+  with the object produced by the root factory at the root of the resource
+  tree.  In the above application the root object has no children, so it's
+  the *only* resource that the system ever sees when the application is run.
+  More complex authorization requirements can make use of children.
+
+- Every authorization policy is passed a *context* argument to its
+  ``permits`` method.  This argument will be a resource.  Our
+  DumbAuthorizationPolicy ignored this argument.  The ACLAuthorizationPolicy
+  does not; it uses the values in the ``__acl__`` attribute of the resource
+  its passed to determine whether the user possesses the permission relative
+  to this view execution.
+
+- An ACL is an access control list.  It is a sequence of ACEs (access control
+  entries).  ``(Allow, Authenticated, 'edit')`` means Allow people who
+  possess the Authenticated principal (you can think of it as a group) to
+  edit.  Only users who are explicitly allowed a permission in an ACL (by
+  mention of their userid or any group they're in such as "Authenticated")
+  will be permitted to execute a view protected by that permission.
+
+- The benefit of all this indirection: we no longer own any imperative code
+  which does authorization or authentication.  Our application uses entirely
+  declarative stuff to protect view execution.  We only add ACLs and
+  permissions, and we have no conditions in our code.  Declarative code
+  requires less testing, and you can typically be surer of the result as long
+  as you understand the abstraction.
+
+app6
+====
+
+Not the same anymore.  Only 'fred' can delete blog entries.
+
+New features:
+
+[1] We changed our ACL to allow only the principal id 'fred' to delete
+    blog entries.  No longer an any authenticated principal delete
+    blog entries.
+
+Noteworthy:
+
+- "Principal" means "userid" or "groupid".  It's just a string, typically
+  (although it can be any basic Python type).
+
+app7
+====
+
+New outcome: Fred can delete all blog entries.  Additionally, any
+authenticated user can delete blog entry named '1'.
+
+New features:
+
+[1] A Resource class.  It defines a __getitem__ that allows Pyramid to ask it
+    for a child.  Instances of Resource also get a __parent__ attribute which
+    point at the parent of a resource (another Resource).  Resource instances
+    may also have an ``__acl__``.
+
+[2] We use a function named root_factory to return the root object, which is
+    a Resource instance.  Before we return the root object, we give it a
+    single child named '1'.
+
+[3] We've added a ``traverse`` argument to the ``add_route`` call for the
+    ``blogentry_delete`` route.  This argument composes the security traversal
+    path for this view.  It uses the same pattern language as the route
+    pattern, so if the URL is ``/blog/1/delete``, the traversal path will
+    be ``/1``.
+
+Noteworthy:
+
+- We did not change our view code at all.  The changes we made were made to
+  the root factory and to the route associated ``blogentry_delete``.
+
+- Since we now have formed a security tree by returning an object that has
+  children from the root factory, and since the ``blogentry_delete`` route
+  now traverses the tree when it is matched, we can now protect individual
+  URLs differently from each other.
+
+- In the above application, ``/blog/1/delete`` can be executed by an
+  authenticated user, but ``/blog/2/delete`` cannot.  This is because the
+  effective ACL will allow the Authenticated user to delete as the result of
+  traversing to ``/1`` because there is such a node in the tree, but there
+  isn't any node in the security tree for ``/2`` so the root ACL is the only
+  ACL consulted.  This is often referred to as "object level security", and
+  is often a requirement for CMS-like systems.
+
+- The ACLAuthorizationPolicy *inherits* ACLs from further down the tree
+  unless an explicit Deny is encountered.  This means that, since the root
+  resource has an __acl__ that says "Allow fred to delete", fred will have
+  the delete permission "everywhere" in the tree.  Unless fred (or another
+  principal possesed by the requesting user) is explicitly denied in an ACL
+  somewhere.
+
+- FYI, circref formed but not cleaned up when Resource instances are created
+  (a resource points to its parent using ``__parent__`` and the parent points
+  at its children via the ``children`` dictionary).
+
+- Note that in a real application, the resource tree would typically be
+  persisted somewhere (maybe in a database, or in a pickle), and not
+  recomposed on every request.
+

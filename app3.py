@@ -1,8 +1,8 @@
+#!/usr/bin/env python
 from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.config import Configurator
 from pyramid.security import remember, forget, Authenticated, Everyone
-from pyramid.httpexceptions import HTTPFound
 from waitress import serve
 
 class BlogentryViews(object):
@@ -14,22 +14,29 @@ class BlogentryViews(object):
         return Response('Shown')
 
     # [4]
-    @view_config(route_name='blogentry_delete', permission='delete')
+    @view_config(route_name='blogentry_delete',
+                 permission='delete')
     def delete(self):
         return Response('Deleted')
 
     # [5]
     @view_config(route_name='login')
     def login(self):
-        userid = self.request.matchdict['userid']
+        userid = self.request.params.get('userid')
         headers = remember(self.request, userid)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged in as %s' % userid,
+            headers=headers
+            )
 
     # [6]
     @view_config(route_name='logout')
     def logout(self):
         headers = forget(self.request)
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged out',
+            headers=headers
+            )
 
 # [1]
 class DumbAuthenticationPolicy(object):
@@ -48,7 +55,10 @@ class DumbAuthenticationPolicy(object):
         return principals
 
     def remember(self, request, principal, **kw):
-        return [('Set-Cookie', 'userid=%s' % principal)]
+        return [
+            ('Set-Cookie',
+             'userid=%s' % str(principal))
+            ]
 
     def forget(self, request):
         return [
@@ -58,7 +68,8 @@ class DumbAuthenticationPolicy(object):
 
 # [2]        
 class DumbAuthorizationPolicy(object):
-    def permits(self, context, principals, permission):
+    def permits(self, context, principals,
+                permission):
         if permission == 'delete':
             return Authenticated in principals
         return False
@@ -73,23 +84,23 @@ if __name__ == '__main__':
         )
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login/{userid}')
-    config.add_route('logout', 'logout')
+    config.add_route('login', '/login')
+    config.add_route('logout', '/logout')
     config.scan()
     app = config.make_wsgi_app()
-    serve(app)
+    serve(app, threads=1)
     
 # Same thing as app1.py.  Basic security; only authenticated users can delete 
 # blog entries and all others can view blog entries.
 #
 # New features: 
 #
+# [3] We wire the authentication and authorization policies into config via
+#     the Configurator.
 # [1] A user-defined Pyramid authentication policy.  It implements the notional
 #     Pyramid authentication policy API (IAuthenticationPolicy).
 # [2] A user-defined Pyramid authorization policy.  It implements the notional
 #     Pyramid authorization policy API (IAuthorizationPolicy).
-# [3] We wire the authentication and authorization policies into config via
-#     the Configurator.
 # [4] A "permission" argument to the ``view_config`` of blogentry_delete
 #     replaces imperative authorization code that used to live in method body.
 # [5] We use ``pyramid.security.remember`` instead of setting a cookie by

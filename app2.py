@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.config import Configurator
-from pyramid.httpexceptions import HTTPForbidden, HTTPFound
+from pyramid.httpexceptions import HTTPForbidden
 from waitress import serve
 
 class BlogentryViews(object):
@@ -10,6 +11,7 @@ class BlogentryViews(object):
 
     @view_config(route_name='blogentry_show')
     def show(self):
+        print self.request.cookies.get('userid')
         return Response('Shown')
 
     # [1]
@@ -23,9 +25,13 @@ class BlogentryViews(object):
     # [2]
     @view_config(route_name='login')
     def login(self):
-        userid = self.request.matchdict['userid']
-        headers = [('Set-Cookie', 'userid=%s' % userid)]
-        return HTTPFound('/blog/1', headers=headers)
+        userid = self.request.params.get('userid')
+        headers = [('Set-Cookie',
+                    'userid=%s' % str(userid))]
+        return Response(
+            'Logged in as %s' % userid,
+            headers=headers
+            )
 
     # [3]
     @view_config(route_name='logout')
@@ -34,15 +40,18 @@ class BlogentryViews(object):
             ('Set-Cookie',
              'userid=deleted; Expires=Thu, 01-Jan-1970 00:00:01 GMT')
             ]
-        return HTTPFound('/blog/1', headers=headers)
+        return Response(
+            'Logged out',
+            headers=headers
+            )
 
 # [4]
 if __name__ == '__main__':
     config = Configurator()
     config.add_route('blogentry_show', '/blog/{id}')
     config.add_route('blogentry_delete', '/blog/{id}/delete')
-    config.add_route('login', 'login')
-    config.add_route('logout', 'logout')
+    config.add_route('login', '/login')
+    config.add_route('logout', '/logout')
     config.scan()
     app = config.make_wsgi_app()
     serve(app)
@@ -52,11 +61,11 @@ if __name__ == '__main__':
 #
 # New features:
 #
-# [1] Imperative authorization code to check whether a logged in user can delete
+# [4] Wiring up login and logout views into config.
 # [2] Login view to service authorization checks.  Just a stub, a real app 
 #     would require password checking.
 # [3] Logout view to forget login credentials.
-# [4] Wiring up login and logout views into config.
+# [1] Imperative authorization code to check whether a logged in user can delete
 #
 # Noteworthy:
 #
